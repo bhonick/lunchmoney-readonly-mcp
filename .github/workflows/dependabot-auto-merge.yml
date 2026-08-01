@@ -37,7 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh label create dependabot-auto-merge --color 0E8A16 \
+          gh label create dependabot-auto-merge --repo "$GITHUB_REPOSITORY" --color 0E8A16 \
             --description "Merge once CI is green" --force
 
       - name: Label patch/minor npm and all github-actions bumps for auto-merge
@@ -80,8 +80,8 @@ jobs:
         # same-named branch. Re-check authorship here too, so the label is a
         # policy hint and not the sole authorization boundary for a merge.
         run: |
-          author=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
-          labels=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
+          author=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json author --jq '.author.login')
+          labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
           if [ "$author" = "dependabot[bot]" ] && grep -qx dependabot-auto-merge <<< "$labels"; then
-            gh pr merge "$PR_NUMBER" --squash --delete-branch
+            gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
           fi
