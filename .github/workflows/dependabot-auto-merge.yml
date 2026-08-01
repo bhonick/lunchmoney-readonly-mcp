@@ -82,6 +82,7 @@ jobs:
         run: |
           author=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json author --jq '.author.login')
           labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
+          echo "DEBUG author=[$author] labels=[$labels]"
           if [ "$author" = "dependabot[bot]" ] && grep -qx dependabot-auto-merge <<< "$labels"; then
             gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
           fi
