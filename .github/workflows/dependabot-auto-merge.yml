@@ -1,0 +1,87 @@
+name: Dependabot auto-merge
+
+# Free-plan-safe: protected branches / required-status-check rulesets are
+# Pro-or-above for PRIVATE repos, and without one, GitHub's native
+# `gh pr merge --auto` does not reliably wait for CI (it can merge before
+# checks finish — see github/community#137211). So this does the CI-wait
+# itself instead of relying on GitHub's auto-merge feature or any repo
+# setting: label decided on `pull_request` (has PR context for
+# fetch-metadata), actual merge happens only once the CI workflow_run for
+# that exact commit reports success.
+
+on:
+  pull_request:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Runs alongside CI. Decides eligibility from Dependabot's commit metadata
+  # (handles grouped updates correctly, unlike regex on the PR title) and
+  # records the decision as a label — merging happens later, in `merge`.
+  classify:
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Ensure the auto-merge label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create dependabot-auto-merge --color 0E8A16 \
+            --description "Merge once CI is green" --force
+
+      - name: Label patch/minor npm and all github-actions bumps for auto-merge
+        if: >-
+          steps.metadata.outputs.update-type != 'version-update:semver-major' ||
+          steps.metadata.outputs.package-ecosystem == 'github_actions'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr edit "$PR_URL" --add-label dependabot-auto-merge
+
+  # Runs once CI actually finishes. Merges immediately (not via GitHub's
+  # `--auto`, which needs "Allow auto-merge" + a required-check rule neither
+  # available here) so this is the only real gate on green CI.
+  merge:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find the PR for this CI run
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          number=$(gh api "repos/${{ github.repository }}/commits/${{ github.event.workflow_run.head_sha }}/pulls" \
+            --jq '.[0].number // empty')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Merge if it's really a Dependabot PR labeled for auto-merge
+        if: steps.pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        # The `classify` job is what actually verifies authorship
+        # (github.actor == 'dependabot[bot]') before adding the label — but a
+        # label alone is a mutable artifact anyone with Triage access (label
+        # read/write, no push/merge rights by design) could add to a
+        # same-named branch. Re-check authorship here too, so the label is a
+        # policy hint and not the sole authorization boundary for a merge.
+        run: |
+          author=$(gh pr view "$PR_NUMBER" --json author --jq '.author.login')
+          labels=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
+          if [ "$author" = "dependabot[bot]" ] && grep -qx dependabot-auto-merge <<< "$labels"; then
+            gh pr merge "$PR_NUMBER" --squash --delete-branch
+          fi
