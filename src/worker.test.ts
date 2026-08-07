@@ -19,8 +19,8 @@ describe("per-request token isolation", () => {
         expect(observed).toHaveLength(2);
     });
 
-    it("does not leak a token to an unscoped reader", async () => {
-        await runWithConfig("scoped-only", async () => {
+    it("does not leak a token to an unscoped reader", () => {
+        runWithConfig("scoped-only", () => {
             expect(getConfig().lunchmoneyApiToken).toBe("scoped-only");
         });
         // Outside the scope there is no process-wide fallback in the Worker,
