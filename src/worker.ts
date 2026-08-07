@@ -1,5 +1,4 @@
-import { McpAgent } from "agents/mcp";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { createMcpHandler } from "agents/mcp/server";
 import {
     createOAuthWorker,
     signResumeToken,
@@ -7,9 +6,10 @@ import {
     type AppEnv,
     type GoogleUserInfo,
     type ResolveUserResult,
+    type McpApiHandler,
 } from "@bm1549/remote-mcp-cloudflare";
 import { createServer } from "@akutishevsky/lunchmoney-mcp/server";
-import { initializeConfig } from "@akutishevsky/lunchmoney-mcp/config";
+import { runWithConfig } from "@akutishevsky/lunchmoney-mcp/config";
 import packageJson from "../package.json" with { type: "json" };
 import { getUserToken } from "./storage.js";
 import { setupHandler } from "./handlers/setup.js";
@@ -24,33 +24,62 @@ interface UserProps extends Record<string, unknown> {
     email: string;
 }
 
-// McpAgent is deprecated in favor of createMcpHandler, but createOAuthWorker
-// (from @bm1549/remote-mcp-cloudflare) is built around the McpAgent Durable
-// Object contract. Migrating requires an upstream change to that package.
-// eslint-disable-next-line @typescript-eslint/no-deprecated
-export class LunchMoneyMCP extends McpAgent<WorkerEnv, unknown, UserProps> {
-    server!: McpServer;
+/**
+ * Per-request MCP server factory.
+ *
+ * Replaces the former `LunchMoneyMCP` Durable Object. Because one stateless
+ * isolate serves every user, the LunchMoney token is bound with
+ * `runWithConfig` for the duration of this request only — never through the
+ * module-level `initializeConfig` singleton, which concurrent requests share.
+ */
+const lunchMoneySource = {
+    serve(path: string): McpApiHandler {
+        return {
+            async fetch(
+                request: Request,
+                env: never,
+                ctx: ExecutionContext,
+            ): Promise<Response> {
+                const workerEnv = env as unknown as WorkerEnv;
 
-    async init() {
-        const sub = this.props?.sub;
-        if (!sub) {
-            throw new Error("Missing sub in McpAgent props");
-        }
-        const stored = await getUserToken(this.env.USER_TOKENS, sub);
-        if (!stored) {
-            // Shouldn't happen — resolveUser would have redirected the user
-            // to /setup before this DO was instantiated. If we got here, the
-            // KV row was deleted out from under an active grant.
-            throw new Error(
-                `No LunchMoney token stored for user ${sub}. Sign in again to re-onboard.`,
-            );
-        }
-        initializeConfig(stored.token);
-        this.server = createServer(packageJson.version);
-    }
-}
+                // Read directly off the ExecutionContext the OAuth provider
+                // populated — not from inside the factory, and not via any
+                // `agents` auth-context helper. This has to happen out here,
+                // before `handler(...)` is called, so the whole call
+                // (including whatever tool dispatch that one request
+                // triggers) can run inside a single `runWithConfig` scope.
+                const props = ctx.props as UserProps | undefined;
+                const sub = props?.sub;
+                if (!sub) {
+                    throw new Error("Missing sub in MCP auth context");
+                }
 
-export default createOAuthWorker(LunchMoneyMCP, {
+                const stored = await getUserToken(workerEnv.USER_TOKENS, sub);
+                if (!stored) {
+                    // Shouldn't happen — resolveUser would have redirected
+                    // to /setup before we got here. If we did, the KV row
+                    // was deleted under an active grant.
+                    throw new Error(
+                        `No LunchMoney token stored for user ${sub}. Sign in again to re-onboard.`,
+                    );
+                }
+
+                const handler = createMcpHandler(
+                    () => createServer(packageJson.version),
+                    { route: path },
+                );
+
+                // The scope must cover the whole request, not just server
+                // construction — see the correction note above.
+                return runWithConfig(stored.token, () =>
+                    handler(request, env, ctx),
+                );
+            },
+        };
+    },
+};
+
+export default createOAuthWorker(lunchMoneySource, {
     userIdSource: "sub",
     resolveUser: async (
         userinfo: GoogleUserInfo,

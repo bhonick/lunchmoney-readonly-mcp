@@ -8,16 +8,16 @@
         {
             "tag": "v1",
             "new_sqlite_classes": ["LunchMoneyMCP"]
+        },
+        {
+            // MCP 2026-07-28 removed protocol-level sessions; the Worker now
+            // serves through a stateless per-request handler, so the DO that
+            // used to hold session state has no remaining purpose. Session
+            // state was transient — per-user tokens live in USER_TOKENS KV.
+            "tag": "v2",
+            "deleted_classes": ["LunchMoneyMCP"]
         }
     ],
-    "durable_objects": {
-        "bindings": [
-            {
-                "name": "MCP_OBJECT",
-                "class_name": "LunchMoneyMCP"
-            }
-        ]
-    },
     "kv_namespaces": [
         {
             // OAuth provider grant store (DCR registrations + issued tokens).
