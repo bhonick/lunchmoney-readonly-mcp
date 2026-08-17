@@ -6,12 +6,13 @@
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
-# Optional. Comma-separated allowlist of Gmail addresses. Leave empty for open
-# signup (any Google account with a verified email may connect). Whitespace is
-# trimmed; matching is case-insensitive.
+# Required. Comma-separated allowlist of Google account email addresses.
+# The Worker fails closed when this is empty. Matching is case-insensitive.
 ALLOWED_EMAILS=
 
-# Random secret used to HMAC-sign the OAuth `state`, the /setup session cookie,
-# CSRF tokens, and resume tokens. Generate with:
+# Random secret used to sign OAuth state. Generate with:
 #   openssl rand -hex 32
 STATE_SECRET=
+
+# Lunch Money token. In production this must be a Worker secret, never a var.
+LUNCHMONEY_API_TOKEN=

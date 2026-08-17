@@ -1,20 +1,21 @@
 {
-    "name": "lunchmoney-mcp-cloudflare",
-    "version": "0.3.0",
+    "name": "lunchmoney-readonly-cloudflare",
+    "version": "1.0.0",
     "private": true,
     "type": "module",
-    "description": "Cloudflare Worker that exposes the LunchMoney MCP server (akutishevsky/lunchmoney-mcp) as a remote MCP endpoint with Google OAuth.",
+    "description": "Single-user, read-only Lunch Money MCP server for ChatGPT on Cloudflare Workers with Google OAuth.",
     "scripts": {
-        "setup": "bash setup.sh",
         "dev": "wrangler dev",
         "deploy": "wrangler deploy",
         "typecheck": "tsc --noEmit",
         "lint": "eslint src",
         "cf-typegen": "wrangler types",
-        "test": "vitest run --passWithNoTests"
+        "test": "vitest run --passWithNoTests",
+        "test:readonly": "node --test --test-isolation=none vendor-lunchmoney-mcp/test/readonly.server.test.mjs",
+        "check:public-release": "node scripts/check-public-release.mjs"
     },
     "dependencies": {
-        "@akutishevsky/lunchmoney-mcp": "github:bm1549/lunchmoney-mcp#df910c7e6fd616eb55ba57c7d1e115e0f927ed64",
+        "@akutishevsky/lunchmoney-mcp": "file:vendor-lunchmoney-mcp",
         "@bm1549/remote-mcp-cloudflare": "0.3.0",
         "@modelcontextprotocol/server": "2.0.0",
         "agents": "0.20.1",

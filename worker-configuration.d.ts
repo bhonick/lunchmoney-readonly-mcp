@@ -3,8 +3,12 @@
 // Runtime types generated with workerd@1.20260730.1 2025-03-10 nodejs_compat
 interface __BaseEnv_Env {
 	OAUTH_KV: KVNamespace;
-	USER_TOKENS: KVNamespace;
 	REGISTER_LIMITER: RateLimit;
+	LUNCHMONEY_API_TOKEN: string;
+	GOOGLE_CLIENT_ID: string;
+	GOOGLE_CLIENT_SECRET: string;
+	ALLOWED_EMAILS: string;
+	STATE_SECRET: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

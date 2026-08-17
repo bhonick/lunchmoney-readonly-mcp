@@ -2,5 +2,12 @@ node_modules/
 dist/
 .wrangler/
 .dev.vars
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+wrangler.personal.jsonc
 *.log
 .DS_Store
