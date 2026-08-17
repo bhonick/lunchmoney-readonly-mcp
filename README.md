@@ -5,6 +5,9 @@ and deployed on Cloudflare Workers. It uses Google OAuth only to identify an
 allowlisted user; the Lunch Money API token is stored as a Cloudflare encrypted
 secret and is never returned to ChatGPT or an MCP tool.
 
+This project was originally based on the bm1549/lunchmoney-mcp-cloudflare project and has been adapted into a read-only Lunch Money MCP template for Cloudflare Workers and ChatGPT.
+The bundled upstream implementation is retained under vendor-lunchmoney-mcp, including its original MIT license and attribution. Thanks to Brian Marks for the original work.
+
 This repository is a template. It contains no live deployment URL, API token,
 Google OAuth secret, email address, or Cloudflare resource ID.
 
@@ -118,3 +121,7 @@ npm run test:readonly
 ```
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution details.
+
+
+
+

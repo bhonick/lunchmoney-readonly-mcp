@@ -1,0 +1,38 @@
+{
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+    "name": "io.github.akutishevsky/lunchmoney-mcp",
+    "title": "Lunch Money",
+    "version": "3.0.0",
+    "description": "MCP server for managing LunchMoney personal finances: transactions, budgets, categories, and more.",
+    "websiteUrl": "https://github.com/akutishevsky/lunchmoney-mcp#readme",
+    "repository": {
+        "url": "https://github.com/akutishevsky/lunchmoney-mcp.git",
+        "source": "github",
+        "id": "akutishevsky/lunchmoney-mcp"
+    },
+    "packages": [
+        {
+            "registryType": "npm",
+            "identifier": "@akutishevsky/lunchmoney-mcp",
+            "version": "3.0.0",
+            "runtimeHint": "npx",
+            "transport": {
+                "type": "stdio"
+            },
+            "environmentVariables": [
+                {
+                    "name": "LUNCHMONEY_API_TOKEN",
+                    "description": "Your LunchMoney API token. Obtain it from https://my.lunchmoney.app/settings/developer",
+                    "isRequired": true,
+                    "isSecret": true
+                },
+                {
+                    "name": "LUNCHMONEY_DEBUG",
+                    "description": "Set to 'true' to enable debug logging of API requests and responses to stderr",
+                    "isRequired": false,
+                    "isSecret": false
+                }
+            ]
+        }
+    ]
+}
