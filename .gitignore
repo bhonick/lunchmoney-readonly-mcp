@@ -9,5 +9,6 @@ dist/
 *.key
 credentials*.json
 wrangler.personal.jsonc
+wrangler.categorize.personal.jsonc
 *.log
 .DS_Store

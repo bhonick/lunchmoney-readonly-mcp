@@ -3,15 +3,18 @@
     "version": "1.0.0",
     "private": true,
     "type": "module",
-    "description": "Single-user, read-only Lunch Money MCP server for ChatGPT on Cloudflare Workers with Google OAuth.",
+    "packageManager": "pnpm@10.15.0",
+    "description": "Single-user, read-only-by-default Lunch Money MCP server for ChatGPT on Cloudflare Workers with Google OAuth.",
     "scripts": {
         "dev": "wrangler dev",
         "deploy": "wrangler deploy",
         "typecheck": "tsc --noEmit",
         "lint": "eslint src",
         "cf-typegen": "wrangler types",
-        "test": "vitest run --passWithNoTests",
-        "test:readonly": "node --test --test-isolation=none vendor-lunchmoney-mcp/test/readonly.server.test.mjs",
+        "test": "vitest run --passWithNoTests && pnpm run test:access",
+        "test:access": "pnpm --dir vendor-lunchmoney-mcp build && node --test vendor-lunchmoney-mcp/test/readonly.server.test.mjs vendor-lunchmoney-mcp/test/categorization.server.test.mjs",
+        "test:readonly": "pnpm --dir vendor-lunchmoney-mcp build && node --test --test-isolation=none vendor-lunchmoney-mcp/test/readonly.server.test.mjs",
+        "test:categorize": "pnpm --dir vendor-lunchmoney-mcp build && node --test --test-isolation=none vendor-lunchmoney-mcp/test/categorization.server.test.mjs",
         "check:public-release": "node scripts/check-public-release.mjs"
     },
     "dependencies": {

@@ -7,13 +7,20 @@ import {
     type ResolveUserResult,
     type McpApiHandler,
 } from "@bm1549/remote-mcp-cloudflare";
-import { createReadonlyServer } from "@akutishevsky/lunchmoney-mcp/server";
-import { runWithReadonlyConfig } from "@akutishevsky/lunchmoney-mcp/config";
+import {
+    createCategorizeServer,
+    createReadonlyServer,
+} from "@akutishevsky/lunchmoney-mcp/server";
+import {
+    runWithCategorizeConfig,
+    runWithReadonlyConfig,
+} from "@akutishevsky/lunchmoney-mcp/config";
 import packageJson from "../package.json" with { type: "json" };
 
 interface WorkerEnv extends BaseEnv {
     REGISTER_LIMITER: RateLimit;
     LUNCHMONEY_API_TOKEN: string;
+    ACCESS_MODE?: string;
 }
 
 interface UserProps extends Record<string, unknown> {
@@ -21,13 +28,24 @@ interface UserProps extends Record<string, unknown> {
     email: string;
 }
 
+type WorkerAccessMode = "readonly" | "categorize";
+
+function resolveAccessMode(raw: string | undefined): WorkerAccessMode {
+    const normalized = (raw ?? "").trim().toLowerCase();
+    if (!normalized || normalized === "readonly") return "readonly";
+    if (normalized === "categorize") return "categorize";
+    throw new Error(
+        `Unsupported ACCESS_MODE "${raw}". Use "categorize" or omit it for strict read-only mode.`,
+    );
+}
+
 /**
  * Per-request MCP server factory.
  *
- * Replaces the former `LunchMoneyMCP` Durable Object. Because one stateless
- * isolate serves one allowlisted user, the Lunch Money token is supplied from
- * an encrypted Worker secret and is bound with a hard read-only API policy for
- * the duration of this request.
+ * The default deployment is strictly read-only. A separately configured
+ * sibling Worker may opt into ACCESS_MODE=categorize, which exposes one
+ * narrowly scoped mutation tool and binds an API policy that permits only
+ * category-only PUTs to individual transactions.
  */
 const lunchMoneySource = {
     serve(path: string): McpApiHandler {
@@ -39,12 +57,6 @@ const lunchMoneySource = {
             ): Promise<Response> {
                 const workerEnv = env as unknown as WorkerEnv;
 
-                // Read directly off the ExecutionContext the OAuth provider
-                // populated — not from inside the factory, and not via any
-                // `agents` auth-context helper. This has to happen out here,
-                // before `handler(...)` is called, so the whole call
-                // (including whatever tool dispatch that one request
-                // triggers) can run inside a single `runWithConfig` scope.
                 const props = ctx.props as UserProps | undefined;
                 if (!props?.sub) {
                     throw new Error("Missing user identity in MCP auth context");
@@ -54,10 +66,21 @@ const lunchMoneySource = {
                     throw new Error("Lunch Money server secret is not configured");
                 }
 
+                const accessMode = resolveAccessMode(workerEnv.ACCESS_MODE);
                 const handler = createMcpHandler(
-                    () => createReadonlyServer(packageJson.version),
+                    () =>
+                        accessMode === "categorize"
+                            ? createCategorizeServer(packageJson.version)
+                            : createReadonlyServer(packageJson.version),
                     { route: path },
                 );
+
+                if (accessMode === "categorize") {
+                    return runWithCategorizeConfig(
+                        workerEnv.LUNCHMONEY_API_TOKEN,
+                        () => handler(request, env, ctx),
+                    );
+                }
 
                 return runWithReadonlyConfig(workerEnv.LUNCHMONEY_API_TOKEN, () =>
                     handler(request, env, ctx),
@@ -81,7 +104,6 @@ export default createOAuthWorker(lunchMoneySource, {
         const email = userinfo.email.toLowerCase();
         const sub = userinfo.sub;
 
-        // This single-user Worker fails closed unless an allowlist is set.
         const allowedRaw = ((env.ALLOWED_EMAILS as string | undefined) ?? "").trim();
         if (!allowedRaw) {
             return Promise.resolve({
