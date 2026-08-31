@@ -13,8 +13,8 @@
         "cf-typegen": "wrangler types",
         "test": "vitest run --passWithNoTests && pnpm run test:access",
         "test:access": "pnpm --dir vendor-lunchmoney-mcp build && node --test vendor-lunchmoney-mcp/test/readonly.server.test.mjs vendor-lunchmoney-mcp/test/categorization.server.test.mjs",
-        "test:readonly": "pnpm --dir vendor-lunchmoney-mcp build && node --test --test-isolation=none vendor-lunchmoney-mcp/test/readonly.server.test.mjs",
-        "test:categorize": "pnpm --dir vendor-lunchmoney-mcp build && node --test --test-isolation=none vendor-lunchmoney-mcp/test/categorization.server.test.mjs",
+        "test:readonly": "pnpm --dir vendor-lunchmoney-mcp build && node --test vendor-lunchmoney-mcp/test/readonly.server.test.mjs",
+        "test:categorize": "pnpm --dir vendor-lunchmoney-mcp build && node --test vendor-lunchmoney-mcp/test/categorization.server.test.mjs",
         "check:public-release": "node scripts/check-public-release.mjs"
     },
     "dependencies": {
