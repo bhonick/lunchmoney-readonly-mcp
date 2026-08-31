@@ -1,4 +1,4 @@
-import { getConfig } from "./config.js";
+import { getConfig, type AccessMode } from "./config.js";
 import { getErrorMessage, errorResponse, catchError } from "./errors.js";
 import { formatData } from "./format.js";
 
@@ -20,18 +20,61 @@ function getRetryDelay(response: Response, attempt: number): number {
     return Math.min(1000 * 2 ** attempt, 10_000);
 }
 
+function isCategoryOnlyTransactionWrite(
+    method: string,
+    path: string,
+    body: unknown,
+): boolean {
+    if (method !== "PUT" || !/^\/transactions\/\d+$/.test(path)) {
+        return false;
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+        return false;
+    }
+
+    const record = body as Record<string, unknown>;
+    const keys = Object.keys(record);
+    if (keys.length !== 1 || keys[0] !== "category_id") {
+        return false;
+    }
+
+    const categoryId = record.category_id;
+    return (
+        categoryId === null ||
+        (typeof categoryId === "number" &&
+            Number.isSafeInteger(categoryId) &&
+            categoryId > 0)
+    );
+}
+
+function assertRequestAllowed(
+    accessMode: AccessMode,
+    method: string,
+    path: string,
+    body?: unknown,
+): void {
+    if (accessMode === "full" || method === "GET") return;
+
+    if (
+        accessMode === "categorize" &&
+        isCategoryOnlyTransactionWrite(method, path, body)
+    ) {
+        return;
+    }
+
+    throw new Error(
+        `${accessMode === "readonly" ? "Read-only" : "Category-only"} Lunch Money server blocked an outbound ${method} request.`,
+    );
+}
+
 async function apiRequest(
     method: string,
     path: string,
     body?: unknown,
 ): Promise<Response> {
-    const { baseUrl, lunchmoneyApiToken, readOnly } = getConfig();
+    const { baseUrl, lunchmoneyApiToken, accessMode } = getConfig();
 
-    if (readOnly && method !== "GET") {
-        throw new Error(
-            `Read-only Lunch Money server blocked an outbound ${method} request.`,
-        );
-    }
+    assertRequestAllowed(accessMode, method, path, body);
 
     const headers: Record<string, string> = {
         Authorization: `Bearer ${lunchmoneyApiToken}`,
@@ -87,7 +130,6 @@ async function apiRequest(
         return response;
     }
 
-    // Unreachable, but satisfies TypeScript
     throw new Error(`Max retries exceeded for ${method} ${path}`);
 }
 
@@ -96,11 +138,11 @@ async function apiUpload(
     path: string,
     formData: FormData,
 ): Promise<Response> {
-    const { baseUrl, lunchmoneyApiToken, readOnly } = getConfig();
+    const { baseUrl, lunchmoneyApiToken, accessMode } = getConfig();
 
-    if (readOnly) {
+    if (accessMode !== "full") {
         throw new Error(
-            `Read-only Lunch Money server blocked an outbound ${method} upload request.`,
+            `${accessMode === "readonly" ? "Read-only" : "Category-only"} Lunch Money server blocked an outbound ${method} upload request.`,
         );
     }
 

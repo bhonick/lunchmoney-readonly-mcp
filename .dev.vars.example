@@ -16,3 +16,6 @@ STATE_SECRET=
 
 # Lunch Money token. In production this must be a Worker secret, never a var.
 LUNCHMONEY_API_TOKEN=
+
+# Optional local-only access mode. Omit for strict read-only behavior.
+# ACCESS_MODE=categorize

@@ -9,6 +9,7 @@ import { registerManualAccountTools } from "./tools/manual-accounts.js";
 import { registerPlaidAccountTools } from "./tools/plaid-accounts.js";
 import { registerCryptoTools } from "./tools/crypto.js";
 import { registerBalanceHistoryTools } from "./tools/balance-history.js";
+import { registerCategorizationTools } from "./tools/categorization.js";
 import { registerPrompts } from "./prompts.js";
 
 export const READ_ONLY_TOOL_NAMES = [
@@ -39,7 +40,13 @@ export const READ_ONLY_TOOL_NAMES = [
     "get_crypto_synced_balance_history",
 ] as const;
 
+export const CATEGORIZE_TOOL_NAMES = [
+    ...READ_ONLY_TOOL_NAMES,
+    "categorize_transaction",
+] as const;
+
 const READ_ONLY_TOOL_SET = new Set<string>(READ_ONLY_TOOL_NAMES);
+const CATEGORIZE_TOOL_SET = new Set<string>(CATEGORIZE_TOOL_NAMES);
 
 function registerAllToolModules(server: McpServer): void {
     registerUserTools(server);
@@ -54,17 +61,55 @@ function registerAllToolModules(server: McpServer): void {
     registerBalanceHistoryTools(server);
 }
 
+function createAllowlistedServer(
+    version: string,
+    serverName: string,
+    toolSet: Set<string>,
+): McpServer {
+    const server = new McpServer({
+        name: serverName,
+        version,
+    });
+    const registerTool = server.registerTool.bind(server);
+
+    const registrationView = new Proxy(server, {
+        get(target, property, receiver) {
+            if (property !== "registerTool") {
+                return Reflect.get(target, property, receiver);
+            }
+
+            return (
+                name: string,
+                definition: Record<string, unknown>,
+                handler: unknown,
+            ) => {
+                if (!toolSet.has(name)) return undefined;
+
+                const annotations = {
+                    ...((definition.annotations as
+                        | Record<string, unknown>
+                        | undefined) ?? {}),
+                    readOnlyHint: READ_ONLY_TOOL_SET.has(name),
+                    destructiveHint: false,
+                    openWorldHint: false,
+                };
+
+                return (registerTool as (...args: unknown[]) => unknown)(
+                    name,
+                    { ...definition, annotations },
+                    handler,
+                );
+            };
+        },
+    }) as McpServer;
+
+    registerAllToolModules(registrationView);
+    registerCategorizationTools(registrationView);
+    return server;
+}
+
 /**
- * Build a configured `McpServer` with all LunchMoney tools and prompts registered.
- *
- * Before any tool is invoked, config from `./config` must be established:
- * `initializeConfig(token)` for single-tenant callers (stdio, one-user CLI),
- * or `runWithConfig(token, fn)` for multi-tenant hosts. The returned server is
- * wired up but inert — actual API calls go through that config, which throws
- * `"Configuration not initialized. Call initializeConfig() or runWithConfig()
- * first."` on the first tool invocation if neither has been established.
- *
- * @param version - Version string surfaced to MCP clients as `serverInfo.version`.
+ * Build a configured McpServer with all LunchMoney tools and prompts registered.
  */
 export function createServer(version: string): McpServer {
     const server = new McpServer({
@@ -80,40 +125,24 @@ export function createServer(version: string): McpServer {
 
 /**
  * Build a server whose protocol surface is structurally read-only.
- *
- * Tool registration is filtered through a positive allowlist. Mutating tools
- * are never added to the MCP server, and every exposed tool is annotated as
- * read-only/non-destructive. Prompts from the full server are intentionally
- * omitted because several describe mutation workflows.
  */
 export function createReadonlyServer(version: string): McpServer {
-    const server = new McpServer({
-        name: "lunchmoney-readonly",
+    return createAllowlistedServer(
         version,
-    });
-    const registerTool = server.registerTool.bind(server);
-    const registrationView = new Proxy(server, {
-        get(target, property, receiver) {
-            if (property !== "registerTool") {
-                return Reflect.get(target, property, receiver);
-            }
-            return (name: string, definition: Record<string, unknown>, handler: unknown) => {
-                if (!READ_ONLY_TOOL_SET.has(name)) return undefined;
-                const annotations = {
-                    ...((definition.annotations as Record<string, unknown> | undefined) ?? {}),
-                    readOnlyHint: true,
-                    destructiveHint: false,
-                    openWorldHint: false,
-                };
-                return (registerTool as (...args: unknown[]) => unknown)(
-                    name,
-                    { ...definition, annotations },
-                    handler,
-                );
-            };
-        },
-    }) as McpServer;
+        "lunchmoney-readonly",
+        READ_ONLY_TOOL_SET,
+    );
+}
 
-    registerAllToolModules(registrationView);
-    return server;
+/**
+ * Build a server that is read-only except for one narrow transaction-category
+ * mutation tool. The API layer must also be bound with runWithCategorizeConfig
+ * so that an accidental or future tool cannot widen the write boundary.
+ */
+export function createCategorizeServer(version: string): McpServer {
+    return createAllowlistedServer(
+        version,
+        "lunchmoney-categorize",
+        CATEGORIZE_TOOL_SET,
+    );
 }
