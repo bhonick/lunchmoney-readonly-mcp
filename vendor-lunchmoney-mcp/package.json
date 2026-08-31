@@ -61,7 +61,7 @@
     "type": "module",
     "dependencies": {
         "@modelcontextprotocol/server": "2.0.0",
-        "@toon-format/toon": "^2.1.0",
+        "@toon-format/toon": "^4.1.1",
         "zod": "^4.2.0"
     },
     "devDependencies": {
