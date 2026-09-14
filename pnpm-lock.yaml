@@ -62,8 +62,8 @@ importers:
         version: 4.6.2
     devDependencies:
       '@eslint/js':
-        specifier: ^9.39.2
-        version: 9.39.5
+        specifier: ^10.0.1
+        version: 10.0.1(eslint@9.39.5)
       '@modelcontextprotocol/client':
         specifier: 2.0.0
         version: 2.0.0
@@ -2919,6 +2919,10 @@ snapshots:
     optionalDependencies:
       eslint: 10.8.1
 
+  '@eslint/js@10.0.1(eslint@9.39.5)':
+    optionalDependencies:
+      eslint: 9.39.5
+
   '@eslint/js@9.39.5': {}
 
   '@eslint/object-schema@2.1.7': {}
@@ -3240,10 +3244,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/eslint-plugin@8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.8.1)(typescript@6.0.3))(eslint@9.39.5)(typescript@7.0.2)':
+  '@typescript-eslint/eslint-plugin@8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5)(typescript@7.0.2))(eslint@9.39.5)(typescript@7.0.2)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.70.0(eslint@10.8.1)(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.70.0(eslint@9.39.5)(typescript@7.0.2)
       '@typescript-eslint/scope-manager': 8.70.0
       '@typescript-eslint/type-utils': 8.70.0(eslint@9.39.5)(typescript@7.0.2)
       '@typescript-eslint/utils': 8.70.0(eslint@9.39.5)(typescript@7.0.2)
@@ -4519,7 +4523,7 @@ snapshots:
 
   typescript-eslint@8.70.0(eslint@9.39.5)(typescript@7.0.2):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.8.1)(typescript@6.0.3))(eslint@9.39.5)(typescript@7.0.2)
+      '@typescript-eslint/eslint-plugin': 8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5)(typescript@7.0.2))(eslint@9.39.5)(typescript@7.0.2)
       '@typescript-eslint/parser': 8.70.0(eslint@9.39.5)(typescript@7.0.2)
       '@typescript-eslint/typescript-estree': 8.70.0(typescript@7.0.2)
       '@typescript-eslint/utils': 8.70.0(eslint@9.39.5)(typescript@7.0.2)
