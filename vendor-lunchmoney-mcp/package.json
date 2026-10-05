@@ -60,7 +60,7 @@
     "homepage": "https://github.com/akutishevsky/lunchmoney-mcp#readme",
     "type": "module",
     "dependencies": {
-        "@modelcontextprotocol/server": "2.0.0",
+        "@modelcontextprotocol/server": "2.2.0",
         "@toon-format/toon": "^2.1.0",
         "zod": "^4.6.5"
     },
